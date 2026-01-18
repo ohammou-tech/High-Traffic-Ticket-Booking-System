@@ -1,3 +1,0 @@
-FROM postgres:16
-
-COPY db/* /docker-entrypoint-initdb.d/

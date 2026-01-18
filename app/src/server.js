@@ -1,4 +1,5 @@
 import express from 'express'
+import {Pool} from pg
 
 async function initServer()
 {
@@ -8,6 +9,8 @@ async function initServer()
     const app = express();
 
     app.listen(port, host, () => console.log(`server listen on ${host}:${port}`));
+
+
 }
 
 initServer();
