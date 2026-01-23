@@ -2,6 +2,6 @@ import { getUserEvents, createUserEvent, deleteUserEvent } from '../controllers/
 
 export default async function routes(app) {
     app.get('/user/events', getUserEvents);
-    // app.post('/user/events', createUserEvent);
-    // app.delete('/user/events/:eventId', deleteUserEvent);
+    app.post('/user/events', createUserEvent);
+    app.delete('/user/events/:eventId', deleteUserEvent);
 }

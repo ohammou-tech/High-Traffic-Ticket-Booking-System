@@ -3,9 +3,14 @@ export async function getUserEvents(req, res) {
 }
 
 export async function createUserEvent(req, res) {
-    // Logic to create a new user event
+    const { event_name, total_tickets } = req.body;
+
+    if (!event_name || !total_tickets) {
+        return res.status(400).json({ error: 'Event name and total tickets are required' });
+    }
+
 }
 
 export async function deleteUserEvent(req, res) {
-    // Logic to delete a user event
+
 }
