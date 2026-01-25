@@ -13,6 +13,7 @@
   "dependencies": {
     "express": "^5.2.1",
     "nodemon": "^3.1.11",
-    "pg": "^8.17.1"
+    "pg": "^8.17.1",
+    "amqplib": "^0.10.4"
   }
 }

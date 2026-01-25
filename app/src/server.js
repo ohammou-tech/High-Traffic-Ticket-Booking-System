@@ -1,16 +1,42 @@
 import express from 'express'
 import {Pool} from "pg"
-import 'express-async-errors';
+// import 'express-async-errors';
 import eventsRoutes from './routes/user.events.route.js'
 import ticketsRoutes from './routes/user.tickets.route.js'
 import { errorHandler } from './middlewares/errorHandler.middleware.js'
+import rabbitMq from 'amqplib';
 
 
-function addingDbToRequest(pool) {
+function addingDbAndRabbitMqToRequest(pool, rabbitMQ) {
     return function (req, res, next) {
         req.db = pool;
+        req.rabbitMq = rabbitMQ;
         next();
     };
+}
+
+
+
+async function connectToRabbitMQ() {
+    try {
+        const connection = await rabbitMq.connect({
+            protocol: 'amqp',
+            hostname: process.env.RABBITMQ_HOST || 'localhost',
+            port: process.env.RABBITMQ_PORT || 5672,
+            username: process.env.RABBITMQ_USER || 'guest',
+            password: process.env.RABBITMQ_PASSWORD || 'guest',
+        });
+
+        const channel = await connection.createChannel();
+        const queue = process.env.RABBITMQ_QUEUE || 'default_queue';
+        await channel.assertQueue(queue, { durable: true });
+
+        console.log('Connected to RabbitMQ');
+        return { connection, channel, queue };
+    } catch (error) {
+        console.error('Failed to connect to RabbitMQ:', error);
+    }
+    // Logic to connect to RabbitMQ
 }
 
 async function initServer()
@@ -31,7 +57,9 @@ async function initServer()
         port: process.env.POSTGRES_PORT,
     });
 
-    app.use(addingDbToRequest(pool));
+    const rabbitMQ = await connectToRabbitMQ();
+
+    app.use(addingDbAndRabbitMqToRequest(pool, rabbitMQ));
 
     await ticketsRoutes(app);
     await eventsRoutes(app);

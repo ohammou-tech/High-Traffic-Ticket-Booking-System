@@ -5,3 +5,4 @@ export default async function routes(app) {
     app.post('/user/events', createUserEvent);
     app.delete('/user/events/:eventId', deleteUserEvent);
 }
+
