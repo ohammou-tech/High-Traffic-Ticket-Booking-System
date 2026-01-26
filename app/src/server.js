@@ -1,5 +1,6 @@
 import express from 'express'
 import {Pool} from "pg"
+import { initDatabase } from './db/init.js'
 // import 'express-async-errors';
 import eventsRoutes from './routes/user.events.route.js'
 import ticketsRoutes from './routes/user.tickets.route.js'
@@ -14,7 +15,6 @@ function addingDbAndRabbitMqToRequest(pool, rabbitMQ) {
         next();
     };
 }
-
 
 
 async function connectToRabbitMQ() {
@@ -57,6 +57,7 @@ async function initServer()
         port: process.env.POSTGRES_PORT,
     });
 
+    await initDatabase(pool);
     const rabbitMQ = await connectToRabbitMQ();
 
     app.use(addingDbAndRabbitMqToRequest(pool, rabbitMQ));
@@ -65,10 +66,12 @@ async function initServer()
     await eventsRoutes(app);
 
     app.use(errorHandler);
-
     app.listen(port, host, () => console.log(`server listen on ${host}:${port}`));
-
 
 }
 
-initServer();
+try {
+    initServer();
+} catch (error) {
+    console.error('Failed to start server:', error);
+}

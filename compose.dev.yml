@@ -11,7 +11,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - ./db_data:/var/lib/postgresql/data
-      - ./app/db:/docker-entrypoint-initdb.d/
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d  ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   backend:
     build:
       context:  './app/src'
@@ -36,6 +42,13 @@ services:
     volumes:
       - ./app/src:/app
       - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - backend-network
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq_container
@@ -47,4 +60,51 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     volumes:
       - ./rabbitmq_data:/var/lib/rabbitmq
-    
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   restart: always
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@example.com
+  #     PGADMIN_DEFAULT_PASSWORD: admin_password
+  #     PGADMIN_CONFIG_SERVER_MODE: 'True'
+  #   ports:
+  #     - "8081:80" # Access pgAdmin at http://localhost:8081
+  #   volumes:
+  #     - ./pgadmin_data:/var/lib/pgadmin
+  #     - ./servers.json:/pgadmin4/servers.json
+  #   depends_on:
+  #     - postgres
+  #   entrypoint: >
+  #     /bin/sh -c "
+  #     cat <<EOF > /pgadmin4/servers.json
+  #     {
+  #       \"Servers\": {
+  #         \"1\": {
+  #           \"Name\": \"Postgres-Docker\",
+  #           \"Group\": \"Servers\",
+  #           \"Host\": \"postgres\",
+  #           \"Port\": 5432,
+  #           \"MaintenanceDB\": \"${POSTGRES_DB}\",
+  #           \"Username\": \"${POSTGRES_USER}\",
+  #           \"Password\": \"${POSTGRES_PASSWORD}\",
+  #           \"SSLMode\": \"prefer\"
+  #         }
+  #       }
+  #     }
+  #     EOF
+  #     /entrypoint.sh"
+    # networks:
+    #   - backend-network
+  
+networks:
+  backend-network:
+    name: backend-network
+    driver: bridge

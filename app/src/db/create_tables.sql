@@ -1,0 +1,25 @@
+
+CREATE EXTENSION IF NOT EXISTS  "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS events (
+    id UUID DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    event_name TEXT NOT NULL UNIQUE,
+    event_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    total_tickets INTEGER NOT NULL,
+    available_tickets INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tickets (
+    id UUID DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    event_id UUID NOT NULL,
+    ticket_status TEXT NOT NULL,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id UUID DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+

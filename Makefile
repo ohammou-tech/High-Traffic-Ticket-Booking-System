@@ -1,7 +1,13 @@
 rundev:
-	docker compose -f compose.dev.yml  up --build
+	docker compose -f compose.dev.yml up -d --build
 down:
 	docker compose -f ./compose.dev.yml down -v
+
+backendlogs:
+	docker compose -f compose.dev.yml logs -f postgres backend
+
+monitorslogs:
+	docker compose -f compose.dev.yml logs -f rabbitmq pgadmin
 
 clean-images:
 		@echo "$(YELLOW)Cleaning project images...$(RESET)"
