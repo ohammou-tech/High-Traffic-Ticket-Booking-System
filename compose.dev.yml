@@ -14,41 +14,27 @@ services:
     networks:
       - backend-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d  ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
-  backend:
-    build:
-      context:  './app/src'
-      dockerfile: '../dockerfile.dev'
-      args:
-        - PORT=3000
-    container_name: backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
     restart: always
-    ports:
-      - "3000:3000"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
-      RABBITMQ_PORT: ${RABBITMQ_PORT}
-      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
-      HOST: ${HOST}
+    expose:
+      - '6379'
     volumes:
-      - ./app/src:/app
-      - /app/node_modules
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - ./redis_data:/data
     networks:
       - backend-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq_container
@@ -68,42 +54,73 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-  # pgadmin:
-  #   image: dpage/pgadmin4
-  #   restart: always
-  #   environment:
-  #     PGADMIN_DEFAULT_EMAIL: admin@example.com
-  #     PGADMIN_DEFAULT_PASSWORD: admin_password
-  #     PGADMIN_CONFIG_SERVER_MODE: 'True'
-  #   ports:
-  #     - "8081:80" # Access pgAdmin at http://localhost:8081
-  #   volumes:
-  #     - ./pgadmin_data:/var/lib/pgadmin
-  #     - ./servers.json:/pgadmin4/servers.json
-  #   depends_on:
-  #     - postgres
-  #   entrypoint: >
-  #     /bin/sh -c "
-  #     cat <<EOF > /pgadmin4/servers.json
-  #     {
-  #       \"Servers\": {
-  #         \"1\": {
-  #           \"Name\": \"Postgres-Docker\",
-  #           \"Group\": \"Servers\",
-  #           \"Host\": \"postgres\",
-  #           \"Port\": 5432,
-  #           \"MaintenanceDB\": \"${POSTGRES_DB}\",
-  #           \"Username\": \"${POSTGRES_USER}\",
-  #           \"Password\": \"${POSTGRES_PASSWORD}\",
-  #           \"SSLMode\": \"prefer\"
-  #         }
-  #       }
-  #     }
-  #     EOF
-  #     /entrypoint.sh"
-    # networks:
-    #   - backend-network
-  
+
+  backend:
+    build:
+      context: './app/src'
+      dockerfile: '../dockerfile.dev'
+    container_name: backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      HOST: ${HOST}
+    volumes:
+      - ./app/src:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+
+  worker:
+    build:
+      context: './app/src'
+      dockerfile: '../dockerfile.dev'
+    container_name: worker
+    restart: always
+    command: ["npx", "nodemon", "--delay", "2s", "worker.js"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+    volumes:
+      - ./app/src:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-network
+
 networks:
   backend-network:
     name: backend-network

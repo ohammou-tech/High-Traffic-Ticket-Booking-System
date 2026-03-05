@@ -1,8 +1,15 @@
-import { getUserTickets, createUserTicket, deleteUserTicket } from '../controllers/user.tickets.controller.js';
+import {
+    bookTicket,
+    bookTicketOptimistic,
+    getTicketStatus,
+    getEventTickets,
+    cancelTicket,
+} from '../controllers/user.tickets.controller.js';
 
-export default async function routes(app) {
-
-    app.get('/user/tickets', getUserTickets);
-    app.post('/user/book', createUserTicket);
-    // app.delete('/user/tickets/:ticketId', deleteUserTicket);
+export default function routes(app) {
+    app.post('/api/booking', bookTicket);
+    app.post('/api/booking/optimistic', bookTicketOptimistic);
+    app.get('/api/booking/:ticketId/status', getTicketStatus);
+    app.get('/api/events/:eventId/tickets', getEventTickets);
+    app.delete('/api/booking/:ticketId', cancelTicket);
 }

@@ -1,45 +1,67 @@
 import createError from 'http-errors';
+import { CACHE_KEYS, CACHE_TTL } from '../config/redis.js';
 
-export async function getUserEvents(req, res) {
+export async function listEvents(req, res) {
+    const result = await req.db.query(
+        'SELECT id, event_name, event_date, total_tickets, available_tickets, created_at FROM events ORDER BY event_date'
+    );
 
-    // console.log('Request params:', req.params);
-
-    if (!req.params || !req.params.id)
-        throw createError.Unauthorized('User not authenticated');
-    const userId = req.params.id;
-
-
-    const events = await req.db.query(`SELECT * FROM events WHERE id = $1`, [userId]);
-
-    res.status(200).json({
-        ok: true,
-        events: events.rows
-    });
+    res.json({ ok: true, events: result.rows });
 }
 
-export async function createUserEvent(req, res) {
-    const { event_name, total_tickets } = req.body;
+export async function getEvent(req, res) {
+    const { eventId } = req.params;
 
-    if (!event_name || !total_tickets) 
-        throw createError.BadRequest('Event name and total tickets are required');
+    const result = await req.db.query('SELECT * FROM events WHERE id = $1', [eventId]);
+    if (result.rows.length === 0)
+        throw createError.NotFound('Event not found');
 
-    console.log('Creating event:', event_name, total_tickets);
-    const changes = await req.db.query(`INSERT INTO events (event_name, total_tickets, available_tickets) VALUES ($1, $2, $3) RETURNING *`,
-        [event_name, total_tickets, total_tickets]);
+    const event = result.rows[0];
 
-    console.log('Number of changes:', changes.rows);
-    if (changes.rowCount === 0)
-        throw createError.InternalServerError('Failed to create event');
-    
-    res.status(201).json({
-        ok: true,
-        message: 'Event created successfully',
-        uuid: changes.rows[0].id
-    });
+    // Overlay the Redis-cached availability (more up-to-date under load)
+    const cached = await req.redis.get(CACHE_KEYS.eventAvailable(eventId));
+    if (cached !== null) {
+        event.available_tickets = parseInt(cached);
+    }
 
+    res.json({ ok: true, event });
 }
 
+export async function createEvent(req, res) {
+    const { event_name, event_date, total_tickets } = req.body;
 
-export async function deleteUserEvent(req, res) {
+    if (!event_name || !total_tickets)
+        throw createError.BadRequest('event_name and total_tickets are required');
+    if (total_tickets <= 0)
+        throw createError.BadRequest('total_tickets must be a positive number');
 
+    const result = await req.db.query(
+        `INSERT INTO events (event_name, event_date, total_tickets, available_tickets)
+         VALUES ($1, $2, $3, $3) RETURNING *`,
+        [event_name, event_date || new Date(), total_tickets]
+    );
+
+    const event = result.rows[0];
+
+    await req.redis.set(
+        CACHE_KEYS.eventAvailable(event.id),
+        event.available_tickets,
+        'EX', CACHE_TTL
+    );
+
+    res.status(201).json({ ok: true, message: 'Event created', event });
+}
+
+export async function deleteEvent(req, res) {
+    const { eventId } = req.params;
+
+    const result = await req.db.query(
+        'DELETE FROM events WHERE id = $1 RETURNING id', [eventId]
+    );
+    if (result.rowCount === 0)
+        throw createError.NotFound('Event not found');
+
+    await req.redis.del(CACHE_KEYS.eventAvailable(eventId));
+
+    res.json({ ok: true, message: 'Event deleted' });
 }
