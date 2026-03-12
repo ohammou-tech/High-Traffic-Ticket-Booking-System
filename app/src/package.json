@@ -1,18 +1,25 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "the high traffic ticket booking system",
+  "description": "High-traffic ticket booking system with Redis caching, RabbitMQ queuing, and PostgreSQL locking",
   "license": "ISC",
   "author": "",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon --delay 2s server.js"
+    "dev": "nodemon --delay 2s server.js",
+    "worker": "node worker.js",
+    "worker:dev": "nodemon --delay 2s worker.js"
   },
   "dependencies": {
+    "amqplib": "^0.10.4",
     "express": "^5.2.1",
+    "http-errors": "^2.0.0",
+    "ioredis": "^5.6.1",
     "nodemon": "^3.1.11",
-    "pg": "^8.17.1"
+    "pg": "^8.17.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   }
 }

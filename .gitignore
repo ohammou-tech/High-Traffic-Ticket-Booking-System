@@ -1,3 +1,5 @@
 .env
 db_data
+redis_data
 app/src/node_modules
+rabbitmq_data/*
