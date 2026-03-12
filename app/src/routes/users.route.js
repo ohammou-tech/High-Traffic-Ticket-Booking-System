@@ -5,3 +5,4 @@ export default function routes(app) {
     app.get('/api/users/:userId', getUser);
     app.get('/api/users/:userId/tickets', getUserTickets);
 }
+
